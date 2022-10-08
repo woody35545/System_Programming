@@ -185,10 +185,8 @@ int addOK(int x, int y) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  int filter = (0x99 << 24) | (0x99 << 16) | (0x99 << 8) | 0x99;
-  int isAllOddBits = (0xAA << 24) | (0xAA << 16) | (0xAA << 8) | 0xAA;
-  return x&filter&isAllOddBits;
-}
+  int filter = (0xAA << 24) | (0xAA << 16) | (0xAA << 8) | 0xAA;
+  return ~((x&filter)^filter)}
 /* 
  * bitNor - ~(x|y) using only ~ and & 
  *   Example: bitNor(0x6, 0x5) = 0xFFFFFFF8
