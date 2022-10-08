@@ -196,7 +196,7 @@ int allOddBits(int x) {
  *   Rating: 1
  */
 int bitNor(int x, int y) {
-  return 2;
+ return ~x & ~y;
 }
 /* 
  * float_neg - Return bit-level equivalent of expression -f for
