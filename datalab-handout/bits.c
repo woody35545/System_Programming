@@ -178,13 +178,15 @@ int addOK(int x, int y) {
    /* if ((sign(x) == sign(y)) && sign(x+y) != sign(x) -> 
     * It means that overflow occurred in the process of adding x and y
     */
-
+	
 	int signOfX = x>>31;
 	int signOfY = y>>31;
 	int signOfXAddY = (x+y)>>31;
 	int isSignSame = !(signOfX ^ signOfY);
-	return(isSignSame & !!(signOfXAddY ^ signOfX));
-  }
+
+	return !(isSignSame & !!(signOfXAddY ^ signOfX));
+
+}
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
  *   Examples allOddBits(0xFFFFFFFD) = 0, allOddBits(0xAAAAAAAA) = 1
