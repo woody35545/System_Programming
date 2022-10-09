@@ -176,9 +176,9 @@ NOTES:
  */
 int addOK(int x, int y) {
     int signFilter = 0x80<<24; // make bit value to 0(zero) except sign bit
-    int x_signbit = signFilter & x >> 31; // get x's sign bit
-    int y_signbit = signFilter & y >> 31; // get y's sign bit
-    int xADDy_signbit = signFilter & (x+y) >> 31; // git x+y's sign bit
+    int x_signbit = (signFilter & x) >> 31; // get x's sign bit
+    int y_signbit = (signFilter & y) >> 31; // get y's sign bit
+    int xADDy_signbit = (signFilter & (x+y)) >> 31; // git x+y's sign bit
     int isXYSignSame = !(x_signbit ^ y_signbit); // if sign(x) == sign(y): 1 , else: 0
    /* if ((sign(x) == sign(y)) && sign(x+y) != sign(x) -> 
     * It means that overflow occurred in the process of adding x and y
