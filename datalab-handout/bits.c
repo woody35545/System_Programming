@@ -215,7 +215,7 @@ unsigned float_neg(unsigned uf) {
  * if (exp == 11...1) && (frac != 00....0) -> NaN
 	*/
 
- int filter = 0xFF<<23 // = 0 1111 1111 0000 .... 0000
+ int filter = 0xFF<<23; // = 0 1111 1111 0000 .... 0000
 	
 	if(!((filter & uf) ^ filter) && !!(filter ^ uf))
 	 //if NaN -> return uf;
