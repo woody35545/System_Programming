@@ -175,21 +175,15 @@ NOTES:
  *   Rating: 3
  */
 int addOK(int x, int y) {
-    int signFilter = 0x80<<24; // make bit value to 0(zero) except sign bit
-    int x_signbit = (signFilter & x) >> 31; // get x's sign bit
-  	printf("x_signbit: %#X\n", x_signbit);
-	int y_signbit = (signFilter & y) >> 31; // get y's sign bit
-	printf("y_signbit: %#X\n", y_signbit);
-    int xADDy_signbit = (signFilter & (x+y)) >> 31; // git x+y's sign bit
-   	printf("xADDy_signbit: %#X\n", xADDy_signbit);
-	int isXYSignSame = !(x_signbit ^ y_signbit); // if sign(x) == sign(y): 1 , else: 0
    /* if ((sign(x) == sign(y)) && sign(x+y) != sign(x) -> 
     * It means that overflow occurred in the process of adding x and y
     */
-    printf("isXYSignSame: %#X\n", isXYSignSame);
-	printf("xADDy_signbit != x_signbit: %#X\n", !!(xADDy_signbit ^ x_signbit));
-	printf("return: %#X\n",(isXYSignSame & (xADDy_signbit^x_signbit)));	
-	return (isXYSignSame & (xADDy_signbit^x_signbit));	    
+
+	int signOfX = x>>31;
+	int signOfY = y>>31;
+	int signOfXAddY = (x+y)>>31;
+	int isSignSame = !(signOfX ^ signOfY);
+	return(isSignSame & !!(signOfXAddY ^ signOfX));
   }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
