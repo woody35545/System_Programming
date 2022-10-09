@@ -178,14 +178,11 @@ int addOK(int x, int y) {
    /* if ((sign(x) == sign(y)) && sign(x+y) != sign(x) -> 
     * It means that overflow occurred in the process of adding x and y
     */
-	
 	int signOfX = x>>31;
 	int signOfY = y>>31;
 	int signOfXAddY = (x+y)>>31;
 	int isSignSame = !(signOfX ^ signOfY);
-
 	return !(isSignSame & !!(signOfXAddY ^ signOfX));
-
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -223,15 +220,10 @@ unsigned float_neg(unsigned uf) {
 /*
  * In case of Not a Number(NaN), the input value is returned as it is.
  * if (exp == 11...1) && (frac != 00....0) -> NaN
-	*/
-
+*/
  int filter = 0xFF<<23; // = 0 1111 1111 0000 .... 0000
- //int fracFilter = (0x7F<<16)|(0xFF<<8)|0xFF; // = 0x7FFFFF
+ if(!((filter & uf) ^ filter) && (uf<<9)^0) return uf; //if NaN -> return uf;
 	
- if(!((filter & uf) ^ filter) && (uf<<9)^0)
- 	//if NaN -> return uf;
- 	return uf;
- 
  // if !(NaN) -> shift uf's MSB(sign bits)
  return (0x80<<24) ^ uf;
 }
@@ -250,7 +242,6 @@ unsigned float_twice(unsigned uf) {
 	/*
 	 * 1. Normalized Value
 	 * 	# exp != 00..0 && exp != 11..1
-	 *
 	 * 2. Denormalized Value
 	 *	# exp == 00..0 , frac == 00..0 -> 0
 	 * 	# exp == 00..0 , frac != 00..0 -> 0+EPSILON (Small value)
@@ -259,21 +250,9 @@ unsigned float_twice(unsigned uf) {
 	 */
 	int signOfUf = 0x80<<24 & uf
 	int expFilter = 0xFF << 23;
-	if((expFilter&uf) == 0)
-		/*
-		 * exp == 00..0
-		 * Denormalized Value
-		 */
-		 return signOfUf | ( uf<<1 );
-
-	if((expFilter&uf) == expFilter)
-		/*
-		 * exp == 11..1
-		 * NaN, INF
-		 */
-		return uf;
-
-	// else Normalized Value
+	if((expFilter&uf) == 0) return signOfUf | ( uf<<1 ); // exp == 00..0 -> Denormalized Value 
+	if((expFilter&uf) == expFilter) return uf; // exp == 11..1 -> NaN, INF
+// else Normalized Value, Add 1 to exp
   return uf + (1 << 23);
 }
 
