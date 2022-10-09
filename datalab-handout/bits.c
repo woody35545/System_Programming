@@ -210,7 +210,19 @@ int bitNor(int x, int y) {
  *   Rating: 2
  */
 unsigned float_neg(unsigned uf) {
- return 2;
+/*
+ * In case of Not a Number(NaN), the input value is returned as it is.
+ * if (exp == 11...1) && (frac != 00....0) -> NaN
+	*/
+
+ int filter = 0xFF<<23 // = 0 1111 1111 0000 .... 0000
+	
+	if(!((filter & uf) ^ filter) && !!(filter ^ uf))
+	 //if NaN -> return uf;
+  return uf;
+ 
+	 // if !(NaN) -> shift uf's MSB(sign bits)
+ return (0x80<<24) ^ uf;
 }
 /* 
  * float_twice - Return bit-level equivalent of expression 2*f for
