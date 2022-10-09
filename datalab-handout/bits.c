@@ -216,12 +216,13 @@ unsigned float_neg(unsigned uf) {
 	*/
 
  int filter = 0xFF<<23; // = 0 1111 1111 0000 .... 0000
+ int fracFilter = (0x7F<<16)|(0xFF<<8)|0xFF; // = 0x7FFFFF
 	
-	if(!((filter & uf) ^ filter) && !!(filter ^ uf))
-	 //if NaN -> return uf;
-  return uf;
+ if(!((filter & uf) ^ filter) && ((fracFilter&uf)^0))
+ 	//if NaN -> return uf;
+ 	return uf;
  
-	 // if !(NaN) -> shift uf's MSB(sign bits)
+ // if !(NaN) -> shift uf's MSB(sign bits)
  return (0x80<<24) ^ uf;
 }
 /* 
