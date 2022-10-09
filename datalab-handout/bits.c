@@ -258,5 +258,11 @@ unsigned float_twice(unsigned uf) {
  *   Rating: 3
  */
 int rempwr2(int x, int n) {
-    return 2;
+   	/*
+	 * 1. Normalized Value
+	 * 2. Denormalized Value
+	 * 3. NaN
+	 */
+
+	return 2;
 }
