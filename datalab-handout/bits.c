@@ -247,6 +247,14 @@ unsigned float_neg(unsigned uf) {
  *   Rating: 4
  */
 unsigned float_twice(unsigned uf) {
+	/*
+	 * 1. Normalized Value
+	 * 	# exp != 00..0 && exp != 11..1
+	 * 2. Denormalized Value
+	 *	# exp 00..0 , frac != 00..0 -> 0+EPSILON (Small value)
+	 * 3. NaN
+         * 	# exp 11..1, frac != 00..0
+	 */
   return 2;
 }
 /* 
@@ -258,11 +266,5 @@ unsigned float_twice(unsigned uf) {
  *   Rating: 3
  */
 int rempwr2(int x, int n) {
-   	/*
-	 * 1. Normalized Value
-	 * 2. Denormalized Value
-	 * 3. NaN
-	 */
-
 	return 2;
 }
