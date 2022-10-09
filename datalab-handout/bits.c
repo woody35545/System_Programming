@@ -250,13 +250,33 @@ unsigned float_twice(unsigned uf) {
 	/*
 	 * 1. Normalized Value
 	 * 	# exp != 00..0 && exp != 11..1
+	 *
 	 * 2. Denormalized Value
-	 *	# exp 00..0 , frac != 00..0 -> 0+EPSILON (Small value)
-	 * 3. NaN
-         * 	# exp 11..1, frac != 00..0
+	 *	# exp == 00..0 , frac == 00..0 -> 0
+	 * 	# exp == 00..0 , frac != 00..0 -> 0+EPSILON (Small value)
+	 * 3. NaN, INF
+    	 * 	# exp == 11..1
 	 */
-  return 2;
+	int signOfUf = 0x80<<24 & uf
+	int expFilter = 0xFF << 23;
+	if((expFilter&uf) == 0)
+		/*
+		 * exp == 00..0
+		 * Denormalized Value
+		 */
+		 return signOfUf | ( uf<<1 );
+
+	if((expFilter&uf) == expFilter)
+		/*
+		 * exp == 11..1
+		 * NaN, INF
+		 */
+		return uf;
+
+	// else Normalized Value
+  return uf + (1 << 23);
 }
+
 /* 
  * rempwr2 - Compute x%(2^n), for 0 <= n <= 30
  *   Negative arguments should yield negative remainders
