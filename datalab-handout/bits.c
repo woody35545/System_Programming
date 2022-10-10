@@ -248,11 +248,11 @@ unsigned float_twice(unsigned uf) {
 	 * 3. NaN, INF
     	 * 	# exp == 11..1
 	 */
-	int signOfUf = 0x80<<24 & uf
+	int signOfUf = 0x80<<24 & uf;
 	int expFilter = 0xFF << 23;
 	if((expFilter&uf) == 0) return signOfUf | ( uf<<1 ); // exp == 00..0 -> Denormalized Value 
 	if((expFilter&uf) == expFilter) return uf; // exp == 11..1 -> NaN, INF
-// else Normalized Value, Add 1 to exp
+  // else Normalized Value, Add 1 to exp
   return uf + (1 << 23);
 }
 
@@ -266,5 +266,5 @@ unsigned float_twice(unsigned uf) {
  */
 int rempwr2(int x, int n) {
 	int remainderFilter = (1<<n) + (~0);
-	return (remainderFilter & x) + (x>>31 & (~(1<<n) + 1));
+	return (remainderFilter & x) +  (~(!!(remainderFilter & x) << n) + 1) & (x<<31);
 }
