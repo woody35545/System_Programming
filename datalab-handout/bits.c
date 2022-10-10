@@ -1,4 +1,7 @@
 /* 
+ * c201701975
+ * Gunmo Ku
+ * 
  * CS:APP Data Lab 
  * 
  * <Please put your name and userid here>
@@ -268,5 +271,5 @@ int rempwr2(int x, int n) {
 	int remainderFilter = (1<<n) + (~0);
 	int remainder = remainderFilter & x;
 	int isRemainderNotZero = !!(remainder);
-	return remainder +  (( ~(isRemainderNotZero << n) + 1) & (x>>31));
+	return remainder +  ((~(isRemainderNotZero << n) + 1) & (x>>31));
 }
