@@ -266,5 +266,7 @@ unsigned float_twice(unsigned uf) {
  */
 int rempwr2(int x, int n) {
 	int remainderFilter = (1<<n) + (~0);
-	return (remainderFilter & x) +  (~(!!(remainderFilter & x) << n) + 1) & (x<<31);
+	int remainder = remainderFilter & x;
+	int isRemainderNotZero = !!(remainder);
+	return remainder +  (( ~(isRemainderNotZero << n) + 1) & (x>>31));
 }
