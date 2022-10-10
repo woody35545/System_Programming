@@ -181,11 +181,12 @@ int addOK(int x, int y) {
    /* if ((sign(x) == sign(y)) && sign(x+y) != sign(x) -> 
     * It means that overflow occurred in the process of adding x and y
     */
-	int signOfX = x>>31;
-	int signOfY = y>>31;
-	int signOfXAddY = (x+y)>>31;
-	int isSignSame = !(signOfX ^ signOfY);
-	return !(isSignSame & !!(signOfXAddY ^ signOfX));
+	int signOfX = x>>31; // sign bit of x 
+	int signOfY = y>>31; // sign bit of y
+	int signOfXAddY = (x+y)>>31; // sign bit of (x+y)
+	int isSignSame = !(signOfX ^ signOfY); // if(sign bit of x == sign bit of y):1, else: 0
+	// if sign of x,y same, and  (sign of (x+y) != sign of x) OR (sign of (x+y) != sign of y) -> OVERFLOW
+	return !(isSignSame & !!(signOfXAddY ^ signOfX));  
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -195,8 +196,10 @@ int addOK(int x, int y) {
  *   Rating: 2
  */
 int allOddBits(int x) {
-  int filter = (0xAA << 24) | (0xAA << 16) | (0xAA << 8) | 0xAA;
-  return !((x&filter)^filter);
+  int filter = (0xAA << 24) | (0xAA << 16) | (0xAA << 8) | 0xAA; // filter: 0x101010101010...1010 , all odd bits' value = 1
+  int oddBitsOfX = filter & x; // make x's even bits' value to 0, and odd bits' value kept as it is.
+  int isAllOddBitsSetOne = !(oddBitsOfX^filter); // if x's all odd bits' value == 1 , then isAllOddbits = 1; else isAllOddbits = 0;
+  return isAllOddBitsSetOne
  }
 /* 
  * bitNor - ~(x|y) using only ~ and & 
@@ -206,6 +209,7 @@ int allOddBits(int x) {
  *   Rating: 1
  */
 int bitNor(int x, int y) {
+ // nor = ~(x | y) is logically same as ~x & ~y (De Morgan's Law)
  return ~x & ~y;
 }
 /* 
@@ -224,7 +228,7 @@ unsigned float_neg(unsigned uf) {
  * In case of Not a Number(NaN), the input value is returned as it is.
  * if (exp == 11...1) && (frac != 00....0) -> NaN
 */
- int filter = 0xFF<<23; // = 0 1111 1111 0000 .... 0000
+ int filter = 0xFF<<23; // = 0 1111 1111 0000 .... 0000, this filter will be use to filter exp field.
  if(!((filter & uf) ^ filter) && (uf<<9)^0) return uf; //if NaN -> return uf;
 	
  // if !(NaN) -> shift uf's MSB(sign bits)
@@ -251,11 +255,11 @@ unsigned float_twice(unsigned uf) {
 	 * 3. NaN, INF
     	 * 	# exp == 11..1
 	 */
-	int signOfUf = 0x80<<24 & uf;
-	int expFilter = 0xFF << 23;
+	int signOfUf = 0x80<<24 & uf; // sign bit of uf
+	int expFilter = 0xFF << 23; //this filter will be use to filter exp field.
 	if((expFilter&uf) == 0) return signOfUf | ( uf<<1 ); // exp == 00..0 -> Denormalized Value 
 	if((expFilter&uf) == expFilter) return uf; // exp == 11..1 -> NaN, INF
-  // else Normalized Value, Add 1 to exp
+  // else Normalized Value, Add 1 to uf's exp field
   return uf + (1 << 23);
 }
 
@@ -268,8 +272,9 @@ unsigned float_twice(unsigned uf) {
  *   Rating: 3
  */
 int rempwr2(int x, int n) {
-	int remainderFilter = (1<<n) + (~0);
-	int remainder = remainderFilter & x;
-	int isRemainderNotZero = !!(remainder);
+	int remainderFilter = (1<<n) + (~0); // will be use to get remainder
+	int remainder = remainderFilter & x; 
+	int isRemainderNotZero = !!(remainder); // if (remainder != 0): 1, else: 0
+	// if x < 0 and remainder != 0, need to adjust remainder by adding -2^n
 	return remainder +  ((~(isRemainderNotZero << n) + 1) & (x>>31));
 }
