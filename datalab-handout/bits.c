@@ -199,7 +199,7 @@ int allOddBits(int x) {
   int filter = (0xAA << 24) | (0xAA << 16) | (0xAA << 8) | 0xAA; // filter: 0x101010101010...1010 , all odd bits' value = 1
   int oddBitsOfX = filter & x; // make x's even bits' value to 0, and odd bits' value kept as it is.
   int isAllOddBitsSetOne = !(oddBitsOfX^filter); // if x's all odd bits' value == 1 , then isAllOddbits = 1; else isAllOddbits = 0;
-  return isAllOddBitsSetOne
+  return isAllOddBitsSetOne;
  }
 /* 
  * bitNor - ~(x|y) using only ~ and & 
