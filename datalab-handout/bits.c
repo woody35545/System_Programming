@@ -230,8 +230,7 @@ unsigned float_neg(unsigned uf) {
 */
  int filter = 0xFF<<23; // = 0 1111 1111 0000 .... 0000, this filter will be use to filter exp field.
  if(!((filter & uf) ^ filter) && (uf<<9)^0) return uf; //if NaN -> return uf;
-	
- // if !(NaN) -> shift uf's MSB(sign bits)
+ // if !(NaN) -> change uf's MSB(sign bits)
  return (0x80<<24) ^ uf;
 }
 /* 
