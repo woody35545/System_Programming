@@ -8,6 +8,8 @@
 
 ---
 
+| Register | Description |
+| --- | --- |
 | %rsp | 스택 포인터 레지스터, 메모리 Stack 의 Top 주소를 저장하고 있음 |
 | %rbp | 스택 베이스 포인터 레지스터. 스택 Frame의 시작 주소를 저장하고 있음 |
 | %rip | Instruction 포인터 레지스터. 다음 실행할 Instruction이 저장된 메모리 주소를 저장. |
