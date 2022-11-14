@@ -174,13 +174,14 @@ void eval(char *cmdline)
 {
 	char *argv[MAXARGS];
 	pid_t pid;
+	
+	// Background job인지 Foreground job인지 여부를 표현하기 위한 변수
+	int jobStatus = parseline(cmdline,argv)==1 ? BG:FG;
+	
 
-	parseline(cmdline,argv);
-
-	pid = fork();
-
+	
 	if(!builtin_cmd(argv)){
-		if(pid == 0){
+		if((pid=fork()) == 0){
 			// child process 인 경우
 			if(execve(argv[0], argv, environ) < 0){
 				printf("%s : Command not found\n\n", argv);
@@ -189,8 +190,21 @@ void eval(char *cmdline)
 		}
 		usleep(100000);
 		}
+
+	// job list 에 해당 pid 추가
+	addjob(jobs,pid,jobStatus,cmdline);
+
+	if(jobStatus == FG){
+		waitpid(pid,NULL,0);
+		deletejob(jobs,pid);
+	}
+
+	else if(jobStatus == BG){
+		printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);	
+	}
+
 	
-	//builtin_cmd(argv);
+	
 
 	return;
 }
@@ -201,7 +215,10 @@ int builtin_cmd(char **argv)
 	if(!strcmp(cmd, "quit")){
 		exit(0);
 	}
-
+	else if (!strcmp(cmd, "jobs")){ 
+		listjobs(jobs,STDOUT_FILENO);		
+		return 1;
+	}
 	return 0;
 }
 
