@@ -239,7 +239,20 @@ void waitfg(pid_t pid, int output_fd)
  *     currently running children to terminate.  
  */
 void sigchld_handler(int sig) 
-{
+{	
+	int child_status = 0;
+	pid_t pid;
+	
+	while((pid=waitpid(-1,&child_status, WNOHAMG|WUNTRACED))>0){
+		if(WIFSIGNALED(child_status){
+		// 자식의 프로세스 종료를 체크
+		printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, WTERMSIG(child_status));	
+		deletejob(jobs,pid);
+		}
+		else if(WIFEXITED(status)){
+			deletejob(jobs,pid);
+		}
+	}
 	return;
 }
 
