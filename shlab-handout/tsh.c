@@ -174,13 +174,18 @@ void eval(char *cmdline)
 {
 	char *argv[MAXARGS];
 	pid_t pid;
-	
+	sigset_t mask;
+
 	// Background job인지 Foreground job인지 여부를 표현하기 위한 변수
 	int jobStatus = parseline(cmdline,argv)==1 ? BG:FG;
 	
-
+	sigemptyset(&mask);
+	sigaddset(&mask,SIGINT);
+	sigaddset(&mask,SIGCHLD);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
 	
 	if(!builtin_cmd(argv)){
+		sigprocmask(SIG_UNBLOCK, &mask, NULL);
 		if((pid=fork()) == 0){
 			// child process 인 경우
 			if(execve(argv[0], argv, environ) < 0){
@@ -193,6 +198,7 @@ void eval(char *cmdline)
 
 	// job list 에 해당 pid 추가
 	addjob(jobs,pid,jobStatus,cmdline);
+	sigprocmask(SIG_UNBLOCK,&mask,NULL);
 
 	if(jobStatus == FG){
 		waitpid(pid,NULL,0);
@@ -240,6 +246,21 @@ void waitfg(pid_t pid, int output_fd)
  */
 void sigchld_handler(int sig) 
 {
+	int child_status = 0;
+	pid_t pid;
+
+	while(pid = waitpid(-1, &child_status, 0)){
+		if(WIFEXITED(child_status))
+		{
+			printf("Job [%d] (%d) terminated by signal %d\n" pid2jid(pid), pid, WTERMSIG(child_status));
+			deletejob(jobs,pid);
+
+		}
+			else {
+			deletejob(jobs,pid);
+		}
+	}
+
 	return;
 }
 
@@ -250,6 +271,9 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+	pid_t pid = fgpid(jobs);
+	if(pid != 0)
+	kill(pid,SIGINT);
 	return;
 }
 
