@@ -174,14 +174,22 @@ void eval(char *cmdline)
 {
 	char *argv[MAXARGS];
 	pid_t pid;
-	
+	sigset_t mask;
 	// Background job인지 Foreground job인지 여부를 표현하기 위한 변수
 	int jobStatus = parseline(cmdline,argv)==1 ? BG:FG;
 	
-
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGCHLD);
+	sigaddset(&mask, SIGINT);
 	
+	// Signal Block
+	sigprocmask(SIG_BLOCK, &mask, NULL);
+
 	if(!builtin_cmd(argv)){
 		if((pid=fork()) == 0){
+			// Signal Unblock
+			sigprocmask(SIG_UNBLOCK, &mask, NULL);
+
 			// child process 인 경우
 			if(execve(argv[0], argv, environ) < 0){
 				printf("%s : Command not found\n\n", argv);
@@ -193,6 +201,8 @@ void eval(char *cmdline)
 
 	// job list 에 해당 pid 추가
 	addjob(jobs,pid,jobStatus,cmdline);
+	// Signal Unblock
+	sigprocmask(SIG_UNBLOCK, &mask, NULL);
 
 	if(jobStatus == FG){
 		waitpid(pid,NULL,0);
