@@ -250,6 +250,11 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+	// Foreground Process의 pid 저장
+	pid_t pid = fgpid(jobs);
+	if(pid !=0)
+		// Process에 SIGINT signal 전달
+		kill(pid,SIGINT);
 	return;
 }
 
