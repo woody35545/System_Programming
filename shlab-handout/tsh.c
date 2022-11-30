@@ -205,12 +205,19 @@ void eval(char *cmdline)
 	sigprocmask(SIG_UNBLOCK, &mask, NULL);
 
 	if(jobStatus == FG){
-		waitpid(pid,NULL,0);
-		deletejob(jobs,pid);
+		while(1){
+		if(pid != fgpid(jobs))
+			break;
+		else
+			sleep(1)
+			}
+			//waitpid(pid,NULL,0);
+		//deletejob(jobs,pid);
 	}
 
-	else if(jobStatus == BG){
-		printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);	
+	//else if(jobStatus == BG){
+	else{
+			printf("(%d) (%d) %s", pid2jid(pid), pid, cmdline);	
 	}
 
 	
@@ -259,7 +266,7 @@ void sigchld_handler(int sig)
 		printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(pid), pid, WTERMSIG(child_status));	
 		deletejob(jobs,pid);
 		}
-		else if(WIFEXITED(child_status)){
+		else{
 			deletejob(jobs,pid);
 		}
 	}
