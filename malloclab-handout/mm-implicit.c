@@ -130,7 +130,33 @@ static void *find_fit(size_t asize){
  * malloc
  */
 void *malloc (size_t size) {
-    return NULL;
+    size_t asize; // 실제로 할당할 size
+    size_t extendsize;
+    char *bp;
+    if(size< DSIZE){
+        // 만약 Size가 DSIZE 보다 작은 경우 최소 블럭 크기인 16bytes(2*DWORD)로 할당
+        asize = 2*DWORD;
+    }
+    else{
+        // 이외의 경우 적당히 align
+         asize = DSIZE*((size+(DSIZE) + (DSIZE-1)) / DSIZE);
+    }
+
+    // find fit 함수를 이용하여 가용블록 찾기
+    if(bp=find_fit(asize) != NULL){
+        // block을 찾았을 경우 해당 위치에 배치
+        place(bp,asize);
+        return bp;
+    }
+    // 가용 block을 찾지 못했을 경우. 힙확장
+    extendsize = MAX(asize, CHUNKSIZE);
+    if((bp=extend_heap(extendsize/WSIZE)) == NULL)
+        // 확장 실패시 NULL return
+        return NULL;
+    // 확장에 성공했을 경우 확장된 위치에 할당
+    place(bp,asize);
+
+    return bp;
 }
 
 /*
