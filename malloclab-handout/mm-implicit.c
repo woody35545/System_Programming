@@ -47,6 +47,7 @@
 /* Define Double Word Size(8bytes)*/ 
 #define DSIZE 8
 #define OVERHEAD 8
+#define CHUNKSIZE (1<<12)
 
 /* The PACK macro is a function that creates a 1-word bit string for size and allocation.*/
 #define PACK(size,alloc) ((size)|(alloc))
@@ -57,6 +58,14 @@
 /* Assign a value to a specific address */
 #define PUT(p,value) (*(unsigend int *)(p) = (value)) 
 
+/* Get pointer of block's header */
+#define HDRP(bp)    ((char *)(bp) - WSIZE)
+/* Get pointer of block's footer */
+#define FTRP(bp)    ((char *)(bp) + GET_SIZE(HDRP(bp))- DSIZE)
+
+/* Get pointer of next or previous block */
+#define NEXT_BLKP(bp)   (((char *)(bp) + GET_SIZE((char *)(bp) - WSIZE))) 
+#define PREV_BLKP(bp)   (((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE)))
 
 /* A pointer to store the starting address of the heap */
 static char *heap_listp = 0;
@@ -79,6 +88,30 @@ int mm_init(void) {
         return -1; 
     return 0;
 }
+static void *extend_heap(size_t words)
+{   
+    /* Round the requested size to a multiple of a double word and expand the heap by that size */
+    char *bp;
+    size_t size;
+    if(words%2)
+        size = (words+1) * WSIZE;
+    else
+        size = words * WSIZE;
+    
+    if((long)(bp = mem_sbrk(size)) == -1)
+        return NULL;
+
+    // Put header of free block
+    PUT(HDRP(bp), PACK(size, 0)); 
+    
+    // Put footer of free block
+    PUT(FTRP(bp), PACK(size, 0));  //free 블록의 footer
+    // Put epilogue header    
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); 
+
+    return coalesce(bp);
+};
+
 
 /*
  * malloc
