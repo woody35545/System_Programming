@@ -125,6 +125,41 @@ static void *find_fit(size_t asize){
     return NULL;
 }
 
+/*
+ * coalesce
+ */
+static void *coalesce(void *bp)
+{
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
+    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
+    size_t size = GET_SIZE(HDRP(bp));
+
+    if (prev_alloc && next_alloc){           
+        // 앞뒤 블럭이 모두 allocate 상태일 경우(Free Block이 아닐 경우)
+        return bp;
+    }
+    else if(prev_alloc && !next_alloc){         
+        // next block이  free block일 경우, next block과 병합 
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+    }
+    else if(!prev_alloc && next_alloc){        
+        // previous block이  free block일 경우, previous block과 병합
+        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+        PUT(FTRP(bp), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
+        bp = PREV_BLKP(bp);
+    }
+    else{                                       
+        // previous, next 모두 free block 일 경우 모두 병합
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(FTRP(NEXT_BLKP(bp)));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+        bp = PREV_BLKP(bp);
+    }   
+    return bp;
+}
 
 /*
  * malloc
@@ -163,7 +198,16 @@ void *malloc (size_t size) {
  * free
  */
 void free (void *ptr) {
-    if(!ptr) return;
+    //if(!ptr) return;
+    size_t size = GET_SIZE(HDRP(bp));
+    // header와 footer의 최하위 비트를 0으로 설정하여 free block으로 전환
+    // header의 alloc 비트 0으로 설정
+    PUT(HDRP(ptr), PACK(size, 0)); 
+    // footer의 alloc 비트 0으로 설정
+    PUT(FTRP(ptr), PACK(size, 0));
+
+    // 주위에 빈 블럭이 있으면 병합
+    coalesce(ptr);
 }
 
 /*
