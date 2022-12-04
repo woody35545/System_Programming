@@ -60,6 +60,7 @@
 
 /* Get pointer of block's header */
 #define HDRP(bp)    ((char *)(bp) - WSIZE)
+
 /* Get pointer of block's footer */
 #define FTRP(bp)    ((char *)(bp) + GET_SIZE(HDRP(bp))- DSIZE)
 
@@ -67,64 +68,52 @@
 #define NEXT_BLKP(bp)   (((char *)(bp) + GET_SIZE((char *)(bp) - WSIZE))) 
 #define PREV_BLKP(bp)   (((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE)))
 
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+
+#define GET_SIZE(p) (GET(p) & ~0x7)
+#define GET_ALLOC(p) (GET(p) & 0x1)
+
+
 /* A pointer to store the starting address of the heap */
 static char *heap_listp = 0;
 
-
-/*
- * Initialize: return -1 on error, 0 on success.
- */
-int mm_init(void) {
-     if((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1){
-        return -1;
-    };
-    PUT(heap_listp, 0); // Padding                         
-    PUT(heap_listp + WSIZE, PACK(OVERHEAD, 1)); // Prologue header 
-    PUT(heap_listp + DSIZE, PACK(OVERHEAD, 1)); // Prologue footer
-    PUT(heap_listp + WISZE + DSIZE, PACK(0, 1)); // Epilogue header
-    heap_listp += (2*WSIZE);  
-    
-    if(extend_heap(CHUNKSIZE/WSIZE)==NULL)
-        return -1; 
-    return 0;
-}
-static void *extend_heap(size_t words)
-{   
-    /* Round the requested size to a multiple of a double word and expand the heap by that size */
-    char *bp;
-    size_t size;
-    if(words%2)
-        size = (words+1) * WSIZE;
-    else
-        size = words * WSIZE;
-    
-    if((long)(bp = mem_sbrk(size)) == -1)
-        return NULL;
-
-    // Put header of free block
-    PUT(HDRP(bp), PACK(size, 0)); 
-    
-    // Put footer of free block
-    PUT(FTRP(bp), PACK(size, 0));  //free 블록의 footer
-    // Put epilogue header    
-    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); 
-
-    return coalesce(bp);
-};
-
-static void *find_fit(size_t asize){
-
-    void *bp;
-    /* First Fit */
-    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
-        /* If it is not an allocated block and the size of the block is greater than the size of the value to be allocated, the corresponding address (pointer) is returned. */
-        if((GET_ALLOC(HDRP(bp))==0) && (asize <= GET_SIZE(HDRP(bp)))){
-            return bp;
-        }
+static void place(void *bp, size_t asize){ // 들어갈 위치를 포인터로 받는다.(find fit에서 찾는 bp) 크기는 asize로 받음.
+    // 요청한 블록을 가용 블록의 시작 부분에 배치, 나머지 부분의 크기가 최소 블록크기와 같거나 큰 경우에만 분할하는 함수.
+    size_t csize = GET_SIZE(HDRP(bp)); // 현재 있는 블록의 사이즈.
+    if ( (csize-asize) >= (2*DSIZE)){ // 현재 블록 사이즈안에서 asize를 넣어도 2*DSIZE(헤더와 푸터를 감안한 최소 사이즈)만큼 남냐? 남으면 다른 data를 넣을 수 있으니까.
+        PUT(HDRP(bp), PACK(asize,1)); // 헤더위치에 asize만큼 넣고 1(alloc)로 상태변환. 원래 헤더 사이즈에서 지금 넣으려고 하는 사이즈(asize)로 갱신.(자르는 효과)
+        PUT(FTRP(bp), PACK(asize,1)); //푸터 위치도 변경.
+        bp = NEXT_BLKP(bp); // regular block만큼 하나 이동해서 bp 위치 갱신.
+        PUT(HDRP(bp), PACK(csize-asize,0)); // 나머지 블록은(csize-asize) 다 가용하다(0)하다라는걸 다음 헤더에 표시.
+        PUT(FTRP(bp), PACK(csize-asize,0)); // 푸터에도 표시.
     }
-    return NULL;
+    else{
+        PUT(HDRP(bp), PACK(csize,1)); // 위의 조건이 아니면 asize만 csize에 들어갈 수 있으니까 내가 다 먹는다.
+        PUT(FTRP(bp), PACK(csize,1));
+    }
 }
+// /*
+//  * place
+//  */
+// static void *place(void *bp, size_t asize){
+//     // block point에 asize를 작성해주는 함수
+    
+//     // 가용블록 크기와 할당할 블럭 크기의 차이를 구해서 블럭 할당전에 블럭을 분할해줄지 여부 판단
+//     size_t diff = GET_SIZE(HDRP(bp)) - asize; 
 
+//     if(diff >= (2*DSIZE)){
+//         // diff가 최소 블럭 크기인 16bytes(2*DSIZE)보다 크면 남은 부분을 새로운 가용 블럭으로 분할
+//         PUT(HDRP(bp), PACK(asize, 1));
+//         PUT(FTRP(bp), PACK(asize, 1));
+//         bp = NEXT_BLKP(bp);
+//         PUT(HDRP(bp), PACK(diff, 0));
+//         PUT(FTRP(bp), PACK(diff, 0));
+//     }else{
+//         // diff가 최소 블럭 크기인 16bytes(2*DSIZE)보다 작으면 분할할 수 없으므로 그냥 할당
+//         PUT(HDRP(bp), PACK(GET_SIZE(HDRP(bp)), 1));
+//         PUT(FTRP(bp), PACK(GET_SIZE(HDRP(bp)), 1));
+//     }
+// }
 /*
  * coalesce
  */
@@ -161,6 +150,64 @@ static void *coalesce(void *bp)
     return bp;
 }
 
+static void *extend_heap(size_t words)
+{   
+    /* Round the requested size to a multiple of a double word and expand the heap by that size */
+    char *bp;
+    size_t size;
+    // if(words%2)
+    //     size = (words+1) * WSIZE;
+    // else
+    //     size = words * WSIZE;
+    size = (words%2) ? (words+1) * WSIZE : words * WSIZE; 
+
+    if((long)(bp = mem_sbrk(size)) == -1)
+        return NULL;
+
+    // Put header of free block
+    PUT(HDRP(bp), PACK(size, 0)); 
+    
+    // Put footer of free block
+    PUT(FTRP(bp), PACK(size, 0));  //free 블록의 footer
+    // Put epilogue header    
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); 
+
+    return coalesce(bp);
+};
+
+/*
+ * Initialize: return -1 on error, 0 on success.
+ */
+int mm_init(void) {
+     if((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1){
+        return -1;
+    };
+    PUT(heap_listp, 0); // Padding                         
+    PUT(heap_listp + WSIZE, PACK(OVERHEAD, 1)); // Prologue header 
+    PUT(heap_listp + DSIZE, PACK(OVERHEAD, 1)); // Prologue footer
+    PUT(heap_listp + WSIZE + DSIZE, PACK(0, 1)); // Epilogue header
+    heap_listp += (2*WSIZE);  
+    
+    if(extend_heap(CHUNKSIZE/WSIZE)==NULL)
+        return -1; 
+    return 0;
+}
+
+
+static void *find_fit(size_t asize){
+
+    void *bp;
+    /* First Fit */
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
+        /* If it is not an allocated block and the size of the block is greater than the size of the value to be allocated, the corresponding address (pointer) is returned. */
+        if((GET_ALLOC(HDRP(bp))==0) && (asize <= GET_SIZE(HDRP(bp)))){
+            return bp;
+        }
+    }
+    return NULL;
+}
+
+
 /*
  * malloc
  */
@@ -170,7 +217,7 @@ void *malloc (size_t size) {
     char *bp;
     if(size< DSIZE){
         // 만약 Size가 DSIZE 보다 작은 경우 최소 블럭 크기인 16bytes(2*DWORD)로 할당
-        asize = 2*DWORD;
+        asize = 2*DSIZE;
     }
     else{
         // 이외의 경우 적당히 align
@@ -195,33 +242,11 @@ void *malloc (size_t size) {
 }
 
 /*
- * place
- */
-static void place(void *bp, size_t asize){
-    // block point에 asize를 작성해주는 함수
-    
-    // 가용블록 크기와 할당할 블럭 크기의 차이를 구해서 블럭 할당전에 블럭을 분할해줄지 여부 판단
-    size_t diff = GET_SIZE(HDRP(bp)) - asize; 
-
-    if(diff >= (2*DSIZE)){
-        // diff가 최소 블럭 크기인 16bytes(2*DSIZE)보다 크면 남은 부분을 새로운 가용 블럭으로 분할
-        PUT(HDRP(bp), PACK(asize, 1));
-        PUT(FTRP(bp), PACK(asize, 1));
-        bp = NEXT_BLKP(bp);
-        PUT(HDRP(bp), PACK(diff, 0));
-        PUT(FTRP(bp), PACK(diff, 0));
-    }else{
-        // diff가 최소 블럭 크기인 16bytes(2*DSIZE)보다 작으면 분할할 수 없으므로 그냥 할당
-        PUT(HDRP(bp), PACK(GET_SIZE(HDRP(bp)), 1));
-        PUT(FTRP(bp), PACK(GET_SIZE(HDRP(bp)), 1));
-    }
-}
-/*
  * free
  */
 void free (void *ptr) {
     //if(!ptr) return;
-    size_t size = GET_SIZE(HDRP(bp));
+    size_t size = GET_SIZE(HDRP(ptr));
     // header와 footer의 최하위 비트를 0으로 설정하여 free block으로 전환
     // header의 alloc 비트 0으로 설정
     PUT(HDRP(ptr), PACK(size, 0)); 
