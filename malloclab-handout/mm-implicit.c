@@ -112,6 +112,19 @@ static void *extend_heap(size_t words)
     return coalesce(bp);
 };
 
+static void *find_fit(size_t asize){
+
+    void *bp;
+    /* First Fit */
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
+        /* If it is not an allocated block and the size of the block is greater than the size of the value to be allocated, the corresponding address (pointer) is returned. */
+        if((GET_ALLOC(HDRP(bp))==0) && (asize <= GET_SIZE(HDRP(bp)))){
+            return bp;
+        }
+    }
+    return NULL;
+}
+
 
 /*
  * malloc
