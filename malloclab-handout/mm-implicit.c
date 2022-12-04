@@ -56,7 +56,7 @@
 #define GET(p) (*(unsigned int *)(p))
 
 /* Assign a value to a specific address */
-#define PUT(p,value) (*(unsigend int *)(p) = (value)) 
+#define PUT(p,value) (*(unsigned int *)(p) = (value)) 
 
 /* Get pointer of block's header */
 #define HDRP(bp)    ((char *)(bp) - WSIZE)
