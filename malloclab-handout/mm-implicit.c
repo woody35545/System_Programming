@@ -46,6 +46,7 @@
 #define WSIZE 4
 /* Define Double Word Size(8bytes)*/ 
 #define DSIZE 8
+#define OVERHEAD 8
 
 /* The PACK macro is a function that creates a 1-word bit string for size and allocation.*/
 #define PACK(size,alloc) ((size)|(alloc))
@@ -57,11 +58,25 @@
 #define PUT(p,value) (*(unsigend int *)(p) = (value)) 
 
 
+/* A pointer to store the starting address of the heap */
+static char *heap_listp = 0;
+
 
 /*
  * Initialize: return -1 on error, 0 on success.
  */
 int mm_init(void) {
+     if((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1){
+        return -1;
+    };
+    PUT(heap_listp, 0); // Padding                         
+    PUT(heap_listp + WSIZE, PACK(OVERHEAD, 1)); // Prologue header 
+    PUT(heap_listp + DSIZE, PACK(OVERHEAD, 1)); // Prologue footer
+    PUT(heap_listp + WISZE + DSIZE, PACK(0, 1)); // Epilogue header
+    heap_listp += (2*WSIZE);  
+    
+    if(extend_heap(CHUNKSIZE/WSIZE)==NULL)
+        return -1; 
     return 0;
 }
 
