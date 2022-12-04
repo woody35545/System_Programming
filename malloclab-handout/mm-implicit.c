@@ -195,6 +195,28 @@ void *malloc (size_t size) {
 }
 
 /*
+ * place
+ */
+static void place(void *bp, size_t asize){
+    // block point에 asize를 작성해주는 함수
+    
+    // 가용블록 크기와 할당할 블럭 크기의 차이를 구해서 블럭 할당전에 블럭을 분할해줄지 여부 판단
+    size_t diff = GET_SIZE(HDRP(bp)) - asize; 
+
+    if(diff >= (2*DSIZE)){
+        // diff가 최소 블럭 크기인 16bytes(2*DSIZE)보다 크면 남은 부분을 새로운 가용 블럭으로 분할
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FTRP(bp), PACK(asize, 1));
+        bp = NEXT_BLKP(bp);
+        PUT(HDRP(bp), PACK(diff, 0));
+        PUT(FTRP(bp), PACK(diff, 0));
+    }else{
+        // diff가 최소 블럭 크기인 16bytes(2*DSIZE)보다 작으면 분할할 수 없으므로 그냥 할당
+        PUT(HDRP(bp), PACK(GET_SIZE(HDRP(bp)), 1));
+        PUT(FTRP(bp), PACK(GET_SIZE(HDRP(bp)), 1));
+    }
+}
+/*
  * free
  */
 void free (void *ptr) {
