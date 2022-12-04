@@ -35,11 +35,28 @@
 #define calloc mm_calloc
 #endif /* def DRIVER */
 
+
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
 
 /* rounds up to the nearest multiple of ALIGNMENT */
 #define ALIGN(p) (((size_t)(p) + (ALIGNMENT-1)) & ~0x7)
+
+/* Define Word Size(4bytes) */
+#define WSIZE 4
+/* Define Double Word Size(8bytes)*/ 
+#define DSIZE 8
+
+/* The PACK macro is a function that creates a 1-word bit string for size and allocation.*/
+#define PACK(size,alloc) ((size)|(alloc))
+
+/* Get a value as much as 1 word size from a specific address value */
+#define GET(p) (*(unsigned int *)(p))
+
+/* Assign a value to a specific address */
+#define PUT(p,value) (*(unsigend int *)(p) = (value)) 
+
+
 
 /*
  * Initialize: return -1 on error, 0 on success.
