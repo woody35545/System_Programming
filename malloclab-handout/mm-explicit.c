@@ -41,6 +41,42 @@
 /* rounds up to the nearest multiple of ALIGNMENT */
 #define ALIGN(p) (((size_t)(p) + (ALIGNMENT-1)) & ~0x7)
 
+
+/* Define Word Size(4bytes) */
+#define WSIZE 4
+/* Define Double Word Size(8bytes)*/ 
+#define DSIZE 8
+#define HDRSIZE 4
+#define FTRSIZE 4
+#define OVERHEAD 8
+#define CHUNKSIZE (1<<12)
+
+/* The PACK macro is a function that creates a 1-word bit string for size and allocation.*/
+#define PACK(size,alloc) ((size)|(alloc))
+
+/* Get a value as much as 1 word size from a specific address value */
+#define GET(p) (*(unsigned int *)(p))
+#define GET8(p) (*(unsigned long *)(p))
+/* Assign a value to a specific address */
+#define PUT(p,val) (*(unsigned int *)(p) = (val)) 
+#define PUT8(p,val) (*(unsigend long *)(p) = (unsigned long)(val))
+
+/* Get pointer of block's header / footer */
+#define HDRP(bp)    ((char *)(bp) - WSIZE)
+#define FTRP(bp)    ((char *)(bp) + GET_SIZE(HDRP(bp))- DSIZE)
+
+/* Get pointer of next or previous block */
+#define NEXT_BLKP(bp)   (((char *)(bp) + GET_SIZE((char *)(bp) - WSIZE))) 
+#define PREV_BLKP(bp)   (((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE)))
+
+#define MIN(x,y) ((x)>(y)?(x):(y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+
+#define GET_SIZE(p) (GET(p) & ~0x7)
+#define GET_ALLOC(p) (GET(p) & 0x1)
+
+
+
 /*
  * Initialize: return -1 on error, 0 on success.
  */
