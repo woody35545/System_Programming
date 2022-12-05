@@ -69,6 +69,14 @@
 #define NEXT_BLKP(bp)   (((char *)(bp) + GET_SIZE((char *)(bp) - WSIZE))) 
 #define PREV_BLKP(bp)   (((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE)))
 
+/* Given block pointer bp, compute address of next and previous free block */
+#define NEXT_FREEP(bp) ((char*)(bp))
+#define PREV_FREEP(bp) ((char*)(bp) + DSIZE)
+
+/* Given free block pointer bp, compute address of next and previous free blocks */
+#define NEXT_FREE_BLKP(bp) ((char*)GET8((char*)(bp)))
+#define PREV_FREE_BLKP(bp) ((char*)GET8((char*)(bp)+DSIZE))
+
 #define MIN(x,y) ((x)>(y)?(x):(y))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
