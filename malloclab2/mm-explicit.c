@@ -81,11 +81,35 @@
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
 
+// [!] 확인 필요
+static char *h_ptr = 0;
+static char *heap_start;
 
 /*
  * Initialize: return -1 on error, 0 on success.
  */
 int mm_init(void) {
+    /* 초기 empty heap 생성 */ 
+    if((h_ptr = mem_sbrk(DSIZE + 4 *HDRSIZE)) == NULL)
+        return -1
+    heap_start = h_ptr; 
+    PUT(h_ptr, NULL);
+    PUT(h_ptr + WSIZE, NULL);
+    PUT(h_ptr + DSIZE, 0); // Alignment padding
+    PUT(h_ptr + HDRSIZE, PACK(OVERHEAD,1)); // Prologue header
+    PUT(h_ptr + DSIZE + HDRSIZE + FTRSIZE + PACK(OVERHEAD,1)); // Prologue footer
+    PUT(h_ptr + DSIZE + 2 * HDRSIZE + FTRSIZE , PACK(0,1)); // Eplilogue header
+
+    /* Move heap pointer over to footer */
+    h_ptr += DSIZE + DSIZE;
+
+    /* Leave room for the previous and next pointers, place epilogue 3 words down*/
+    epilogue = h_ptr + HDRSIZE;
+
+    /* Extend the empty heap with a free block of CHUNKSIZE bytes */
+    if(extend_heap(CHUNKSIZE/WSIZE)==NULL)
+        return -1;
+
     return 0;
 }
 

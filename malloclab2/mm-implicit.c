@@ -77,7 +77,6 @@ static void place(void *bp, size_t asize);
 static char *heap_listp = 0; // usable block heap for init
 static char *next_listp;
 
-
 /*
  * Initialize: return -1 on error, 0 on success.
  */
