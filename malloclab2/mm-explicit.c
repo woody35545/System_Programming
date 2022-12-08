@@ -199,6 +199,24 @@ static void find_fit(size_t asize){
     }
     return NULL;
 }
+
+static void place(void *block_ptr, size_t asize){
+    size_t csize = GET_SIZE(HDRP(block_ptr));
+    if((csize-asize)>= MINSIZE){
+        PUT(HDRP(block_ptr), PACK(asize,1));
+        PUT(FTRP(block_ptr), PACK(asize,1));
+        remove_block(block_ptr);
+        block_ptr = NEXT_BLKP(block_ptr);
+        PUT(HDRP(block_ptr), PACK(csize-asize,0));
+        PUT(FTRP(block_ptr), PACK(csize-asize,0));
+        coalesce(block_ptr);
+    }
+    else{
+        PUT(HDRP(block_ptr), PACK(csize,1));
+        PUT(FTRP(block_ptr), PACK(csize,1));
+        remove_block(block_ptr);
+    }
+}
 /*
  * malloc
  */
