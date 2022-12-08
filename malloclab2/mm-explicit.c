@@ -89,6 +89,12 @@ static char *heap_start_ptr;
 static char *epilogue_ptr;
 static char *free_listp=0;
 
+static void *extend_heap(size_t words);
+static void place(void *block_ptr, size_t asize);
+static void *find_fit(size_t asize);
+static void *coalesce(void *block_ptr);
+static void remove_block(void *block_ptr);
+
 /*
  * Initialize: return -1 on error, 0 on success.
  */
@@ -221,8 +227,25 @@ static void place(void *block_ptr, size_t asize){
  * malloc
  */
 void *malloc (size_t size) {
-    return NULL;
-}
+        size_t asize;
+        size_t extendSize; 
+        char *block_ptr;
+    
+    if(size <= 0) return NULL
+
+    asize = MAX(ALIGN(size) + DSIZE,MINSIZE);
+    if((block_ptr = findFit(asize))){
+        place(block_ptr,asize);
+        return block_ptr;
+    }
+    extendSize = MAX(asize,CHUNKSIZE);
+    if((block_ptr = extend_heap(extendSize/WSIZE))==NULL)
+        return NULL;
+   
+    place(block_ptr,asize);
+    return block_ptr;
+
+    }
 
 /*
  * free
