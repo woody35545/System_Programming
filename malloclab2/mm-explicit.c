@@ -35,6 +35,8 @@
 #define calloc mm_calloc
 #endif /* def DRIVER */
 
+#define MINSIZE = 24
+
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
 
@@ -85,6 +87,7 @@
 static char *h_ptr = 0;
 static char *heap_start_ptr;
 static char *epilogue_ptr;
+static char *free_listp=0;
 
 /*
  * Initialize: return -1 on error, 0 on success.
@@ -124,6 +127,78 @@ int mm_init(void) {
     return 0;
 }
 
+static void *extend_heap(size_t words){
+    // 메모리에 heap 추가 공간 할당하는 함수
+
+    char *block_ptr; /* 확장 후의 블록 주소를 저장할 pointer*/
+    size_t size; 
+    size = (words%2) ?(words+1)*WSIZE : words*WSIZE; 
+
+    if(size < MINSIZE) size = MINSIZE;
+    if((long)(block_ptr = mem_sbrk(size)) == -1)
+        return NULL;
+
+    // free block의 header, footer, epilogue 초기화
+    PUT(HDRP(block_ptr), PACK(size,0));
+    PUT(FTRP(block_ptr), PACK(size,0));
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0,1));
+    return coalesce(block_ptr)
+}   
+
+static void *coalesce(void *block_ptr){
+    // 이전 block이 allocated block 인지 확인
+    size_t isPrevBlkAlloc = GET_ALLOC(FTRP(PREV_BLKP(block_ptr))) || PREV_BLKP(block_ptr) == block_ptr;
+    size_t isNextBLkAlloc = GET_ALLOC(HDRP(NEXT_BLKP(block_ptr)));
+    size_t size = GET_SIZE(HDRP(block_ptr));
+
+    if(isPrevBlkAlloc && !isNextBLkAlloc){
+        // PREV: alloc, NEXT: not alloc
+        // Merge with NEXT BLOCK
+        size += GET_SIZE(HDRP(NEXT_BLKP(block_ptr)));
+        PUT(HDRP(block_ptr), PACK(size,0));
+        PUT(FTRP(block_ptr), PACK(size,0)); 
+    }
+    else if(!isPrevBlkAlloc && isNextBLkAlloc){ 
+        // PREV: not alloc, NEXT: alloc
+        // Merge with PREV BLOCK
+        size += GET_SIZE(HDRP(PREV_BLKP(block_ptr)));
+        block_ptr = PREV_BLKP(block_ptr);
+        remove_block(block_ptr);
+        PUT(HDRP(block_ptr, PACK(size,0)));
+        PUT(FTRP(block_ptr, PACK(size,0)));
+    }
+    else if(!isPrevBlkAlloc && isNextBLkAlloc){
+        // PREV: not alloc, NEXT: not alloc
+        size += GET_SIZE(HDRP(PREV_BLKP(block_ptr))) + GET_SIZE(HDRP(NEXT_BLKP(block_tpr)));
+        remove_block(PREV_BLKP(block_ptr));
+        remove_block(NEXT_BLKP(block_ptr));
+        block_ptr = PREV_BLKP;
+        PUT(HDRP(block_ptr), PACK(size,0));
+        PUT(FTRP(block_ptr), PACK(size,0));
+    }
+    NEXT_FREE_BLKP(block_ptr) = free_listp;
+    PREV_FREE_BLKP(free_listp) = block_ptr;
+    PREV_FREE_BLKP(block_ptr) = NULL;
+    free_listp = block_ptr;
+    return block_ptr;
+}
+
+static void remove_block(void *block_ptr){
+    if(PREV_FREE_BLKP(block_ptr))
+        NEXT_FREE_BLKP(PREV_FREE_BLKP(block_ptr)) = NEXT_FREE_BLKP(block_ptr);
+    else
+        free_listp = NEXT_FREE_BLKP(block_ptr);
+    PREV_FREE_BLKP(NEXT_FREE_BLKP(block_ptr)) = PREV_FREE_BLKP(block_ptr);
+}   
+
+static void find_fit(size_t asize){
+    void *block_ptr;
+    for (block_ptr = free_listp; GET_ALLOC(HDRP(block_ptr) == 0; block_ptr=NEXT_FREE_BLKP(block_ptr))){
+        if(asize <=(size_t)GET_SIZE(HDRP(block_ptr)))
+            return block_ptr;     
+    }
+    return NULL;
+}
 /*
  * malloc
  */
@@ -140,10 +215,12 @@ void free (void *block_ptr) { // block_ptr: pointer of block
     
     // size는 원래 block size를 그대로 넣어줌
     size_t size = GET_SIZE(HDRP(block_ptr));
-    
+
     // Header와 Footer의 Allocate 비트를 free(=0)로 변경
-    PUT(HDRP(block_ptr),PACK(size,0));
-    PUT(FTRP(block_ptr),PACK(size,0));
+    PUT(HDRP(block_ptr),PACK(size,0)); // set allocated bit 0(free block)
+    PUT(FTRP(block_ptr),PACK(size,0)); // set allocated bit 0(free block)
+
+    coalesce(block_ptr);
 }
 
 /*
