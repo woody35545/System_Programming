@@ -35,7 +35,7 @@
 #define calloc mm_calloc
 #endif /* def DRIVER */
 
-#define MINSIZE = 24
+#define MINSIZE 24
 
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
@@ -76,6 +76,9 @@
 /* Given free block pointer bp, compute address of next and previous free blocks */
 #define NEXT_FREE_BLKP(bp) ((char*)GET8((char*)(bp)))
 #define PREV_FREE_BLKP(bp) ((char*)GET8((char*)(bp)+DSIZE))
+
+#define NEXT_FREEP(bp) (*(void **) (bp + DSIZE))
+#define PREV_FREEP(bp) (*(void **)(bp))
 
 #define MIN(x,y) ((x)>(y)?(x):(y))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
@@ -147,8 +150,8 @@ static void *extend_heap(size_t words){
     // free block의 header, footer, epilogue 초기화
     PUT(HDRP(block_ptr), PACK(size,0));
     PUT(FTRP(block_ptr), PACK(size,0));
-    PUT(HDRP(NEXT_BLKP(bp)), PACK(0,1));
-    return coalesce(block_ptr)
+    PUT(HDRP(NEXT_BLKP(block_ptr)), PACK(0,1));
+    return coalesce(block_ptr);
 }   
 
 static void *coalesce(void *block_ptr){
@@ -170,36 +173,36 @@ static void *coalesce(void *block_ptr){
         size += GET_SIZE(HDRP(PREV_BLKP(block_ptr)));
         block_ptr = PREV_BLKP(block_ptr);
         remove_block(block_ptr);
-        PUT(HDRP(block_ptr, PACK(size,0)));
-        PUT(FTRP(block_ptr, PACK(size,0)));
-    }
-    else if(!isPrevBlkAlloc && isNextBLkAlloc){
-        // PREV: not alloc, NEXT: not alloc
-        size += GET_SIZE(HDRP(PREV_BLKP(block_ptr))) + GET_SIZE(HDRP(NEXT_BLKP(block_tpr)));
-        remove_block(PREV_BLKP(block_ptr));
-        remove_block(NEXT_BLKP(block_ptr));
-        block_ptr = PREV_BLKP;
         PUT(HDRP(block_ptr), PACK(size,0));
         PUT(FTRP(block_ptr), PACK(size,0));
     }
-    NEXT_FREE_BLKP(block_ptr) = free_listp;
-    PREV_FREE_BLKP(free_listp) = block_ptr;
-    PREV_FREE_BLKP(block_ptr) = NULL;
+    else if(!isPrevBlkAlloc && isNextBLkAlloc){
+        // PREV: not alloc, NEXT: not alloc
+        size += GET_SIZE(HDRP(PREV_BLKP(block_ptr))) + GET_SIZE(HDRP(NEXT_BLKP(block_ptr)));
+        remove_block(PREV_BLKP(block_ptr));
+        remove_block(NEXT_BLKP(block_ptr));
+        block_ptr = PREV_BLKP(block_ptr);
+        PUT(HDRP(block_ptr), PACK(size,0));
+        PUT(FTRP(block_ptr), PACK(size,0));
+    }
+    NEXT_FREEP(block_ptr) = free_listp;
+    PREV_FREEP(free_listp) = block_ptr;
+    PREV_FREEP(block_ptr) = NULL;
     free_listp = block_ptr;
     return block_ptr;
 }
 
 static void remove_block(void *block_ptr){
-    if(PREV_FREE_BLKP(block_ptr))
-        NEXT_FREE_BLKP(PREV_FREE_BLKP(block_ptr)) = NEXT_FREE_BLKP(block_ptr);
+    if(PREV_FREEP(block_ptr))
+        NEXT_FREEP(PREV_FREEP(block_ptr)) = NEXT_FREEP(block_ptr);
     else
-        free_listp = NEXT_FREE_BLKP(block_ptr);
-    PREV_FREE_BLKP(NEXT_FREE_BLKP(block_ptr)) = PREV_FREE_BLKP(block_ptr);
+        free_listp = NEXT_FREEP(block_ptr);
+    PREV_FREEP(NEXT_FREEP(block_ptr)) = PREV_FREEP(block_ptr);
 }   
 
-static void find_fit(size_t asize){
+static void *find_fit(size_t asize){
     void *block_ptr;
-    for (block_ptr = free_listp; GET_ALLOC(HDRP(block_ptr) == 0; block_ptr=NEXT_FREE_BLKP(block_ptr))){
+    for (block_ptr = free_listp; GET_ALLOC(HDRP(block_ptr)) == 0; block_ptr=NEXT_FREE_BLKP(block_ptr)){
         if(asize <=(size_t)GET_SIZE(HDRP(block_ptr)))
             return block_ptr;     
     }
@@ -228,13 +231,13 @@ static void place(void *block_ptr, size_t asize){
  */
 void *malloc (size_t size) {
         size_t asize;
-        size_t extendSize; 
+        size_t extendSize;
         char *block_ptr;
     
-    if(size <= 0) return NULL
+    if(size <= 0) return NULL;
 
     asize = MAX(ALIGN(size) + DSIZE,MINSIZE);
-    if((block_ptr = findFit(asize))){
+    if((block_ptr = find_fit(asize))){
         place(block_ptr,asize);
         return block_ptr;
     }
