@@ -3,9 +3,9 @@
  *
  * NOTE TO STUDENTS: Replace this header comment with your own header
  * comment that gives a high level description of your solution.
- *
- * @id : 학번 
- * @name : 이름 
+ * 
+ * @id :
+ * @name : 
  */
 #include <assert.h>
 #include <stdio.h>
@@ -35,208 +35,213 @@
 #define calloc mm_calloc
 #endif /* def DRIVER */
 
-
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
 
 /* rounds up to the nearest multiple of ALIGNMENT */
 #define ALIGN(p) (((size_t)(p) + (ALIGNMENT-1)) & ~0x7)
 
-/* Define Word Size(4bytes) */
+/* Basic constants and macros */
 #define WSIZE 4
-/* Define Double Word Size(8bytes)*/ 
-#define DSIZE 8
-#define OVERHEAD 8
+#define DSIZE 8 
 #define CHUNKSIZE (1<<12)
+#define OVERHEAD 8
 
-/* The PACK macro is a function that creates a 1-word bit string for size and allocation.*/
-#define PACK(size,alloc) ((size)|(alloc))
+#define MAX(x,y) ((x) > (y) ? (x): (y))
 
-/* Get a value as much as 1 word size from a specific address value */
-#define GET(p) (*(unsigned int *)(p))
+/* Pack a size and allocate bit into a word */
+#define PACK(size, alloc) ((size) | (alloc))
 
-/* Assign a value to a specific address */
-#define PUT(p,value) (*(unsigned int *)(p) = (value)) 
+/* Read and write a word at address p */
+#define GET(p)      (*(unsigned int *)(p))
+#define PUT(p, val) (*(unsigned int *)(p) = (val))
 
-/* Get pointer of block's header */
+/* Read the size and allocated fields of address p */
+#define GET_SIZE(p)   (GET(p) & ~0x7) // read without last 3 bits
+#define GET_ALLOC(p)  (GET(p) & 0x1) // is allocated?
+
+/* Get block header and footer pointer */
 #define HDRP(bp)    ((char *)(bp) - WSIZE)
-
-/* Get pointer of block's footer */
 #define FTRP(bp)    ((char *)(bp) + GET_SIZE(HDRP(bp))- DSIZE)
 
-/* Get pointer of next or previous block */
+/* get next and previous block pointer */
 #define NEXT_BLKP(bp)   (((char *)(bp) + GET_SIZE((char *)(bp) - WSIZE))) 
 #define PREV_BLKP(bp)   (((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE)))
 
-#define MAX(x, y) ((x) > (y) ? (x) : (y))
 
-#define GET_SIZE(p) (GET(p) & ~0x7)
-#define GET_ALLOC(p) (GET(p) & 0x1)
+static void *extend_heap(size_t words);
+static void *find_fit(size_t asize);
+static void *coalesce(void *bp);
+static void place(void *bp, size_t asize);
 
+static char *heap_listp = 0; // usable block heap for init
+static char *next_listp;
 
-/* A pointer to store the starting address of the heap */
-static char *heap_listp = 0;
-
-static void place(void *bp, size_t asize){ // 들어갈 위치를 포인터로 받는다.(find fit에서 찾는 bp) 크기는 asize로 받음.
-    // 요청한 블록을 가용 블록의 시작 부분에 배치, 나머지 부분의 크기가 최소 블록크기와 같거나 큰 경우에만 분할하는 함수.
-    size_t csize = GET_SIZE(HDRP(bp)); // 현재 있는 블록의 사이즈.
-    if ( (csize-asize) >= (2*DSIZE)){ // 현재 블록 사이즈안에서 asize를 넣어도 2*DSIZE(헤더와 푸터를 감안한 최소 사이즈)만큼 남냐? 남으면 다른 data를 넣을 수 있으니까.
-        PUT(HDRP(bp), PACK(asize,1)); // 헤더위치에 asize만큼 넣고 1(alloc)로 상태변환. 원래 헤더 사이즈에서 지금 넣으려고 하는 사이즈(asize)로 갱신.(자르는 효과)
-        PUT(FTRP(bp), PACK(asize,1)); //푸터 위치도 변경.
-        bp = NEXT_BLKP(bp); // regular block만큼 하나 이동해서 bp 위치 갱신.
-        PUT(HDRP(bp), PACK(csize-asize,0)); // 나머지 블록은(csize-asize) 다 가용하다(0)하다라는걸 다음 헤더에 표시.
-        PUT(FTRP(bp), PACK(csize-asize,0)); // 푸터에도 표시.
-    }
-    else{
-        PUT(HDRP(bp), PACK(csize,1)); // 위의 조건이 아니면 asize만 csize에 들어갈 수 있으니까 내가 다 먹는다.
-        PUT(FTRP(bp), PACK(csize,1));
-    }
-}
-// /*
-//  * place
-//  */
-// static void *place(void *bp, size_t asize){
-//     // block point에 asize를 작성해주는 함수
-    
-//     // 가용블록 크기와 할당할 블럭 크기의 차이를 구해서 블럭 할당전에 블럭을 분할해줄지 여부 판단
-//     size_t diff = GET_SIZE(HDRP(bp)) - asize; 
-
-//     if(diff >= (2*DSIZE)){
-//         // diff가 최소 블럭 크기인 16bytes(2*DSIZE)보다 크면 남은 부분을 새로운 가용 블럭으로 분할
-//         PUT(HDRP(bp), PACK(asize, 1));
-//         PUT(FTRP(bp), PACK(asize, 1));
-//         bp = NEXT_BLKP(bp);
-//         PUT(HDRP(bp), PACK(diff, 0));
-//         PUT(FTRP(bp), PACK(diff, 0));
-//     }else{
-//         // diff가 최소 블럭 크기인 16bytes(2*DSIZE)보다 작으면 분할할 수 없으므로 그냥 할당
-//         PUT(HDRP(bp), PACK(GET_SIZE(HDRP(bp)), 1));
-//         PUT(FTRP(bp), PACK(GET_SIZE(HDRP(bp)), 1));
-//     }
-// }
-/*
- * coalesce
- */
-static void *coalesce(void *bp)
-{
-    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
-    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
-    size_t size = GET_SIZE(HDRP(bp));
-
-    if (prev_alloc && next_alloc){           
-        // 앞뒤 블럭이 모두 allocate 상태일 경우(Free Block이 아닐 경우)
-        return bp;
-    }
-    else if(prev_alloc && !next_alloc){         
-        // next block이  free block일 경우, next block과 병합 
-        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
-        PUT(HDRP(bp), PACK(size, 0));
-        PUT(FTRP(bp), PACK(size, 0));
-    }
-    else if(!prev_alloc && next_alloc){        
-        // previous block이  free block일 경우, previous block과 병합
-        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
-        PUT(FTRP(bp), PACK(size, 0));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size,0));
-        bp = PREV_BLKP(bp);
-    }
-    else{                                       
-        // previous, next 모두 free block 일 경우 모두 병합
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(FTRP(NEXT_BLKP(bp)));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
-        bp = PREV_BLKP(bp);
-    }   
-    return bp;
-}
-
-static void *extend_heap(size_t words)
-{   
-    /* Round the requested size to a multiple of a double word and expand the heap by that size */
-    char *bp;
-    size_t size;
-    // if(words%2)
-    //     size = (words+1) * WSIZE;
-    // else
-    //     size = words * WSIZE;
-    size = (words%2) ? (words+1) * WSIZE : words * WSIZE; 
-
-    if((long)(bp = mem_sbrk(size)) == -1)
-        return NULL;
-
-    // Put header of free block
-    PUT(HDRP(bp), PACK(size, 0)); 
-    
-    // Put footer of free block
-    PUT(FTRP(bp), PACK(size, 0));  //free 블록의 footer
-    // Put epilogue header    
-    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); 
-
-    return coalesce(bp);
-};
 
 /*
  * Initialize: return -1 on error, 0 on success.
  */
 int mm_init(void) {
-     if((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1){
+    
+    // 0. make empty heap for padding, prologue, epilogue
+    if ((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1){ // extend 4word to heap_listp
         return -1;
     };
-    PUT(heap_listp, 0); // Padding                         
-    PUT(heap_listp + WSIZE, PACK(OVERHEAD, 1)); // Prologue header 
-    PUT(heap_listp + DSIZE, PACK(OVERHEAD, 1)); // Prologue footer
-    PUT(heap_listp + WSIZE + DSIZE, PACK(0, 1)); // Epilogue header
-    heap_listp += (2*WSIZE);  
-    
-    if(extend_heap(CHUNKSIZE/WSIZE)==NULL)
-        return -1; 
+
+    // 1. make init block
+    PUT(heap_listp, 0); // padding 0
+    PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1)); // prologue header
+    PUT(heap_listp + (2*WSIZE), PACK(DSIZE, 1)); // prologue footer
+    PUT(heap_listp + (3*WSIZE), PACK(0, 1)); // epilogue header
+    heap_listp += (2*WSIZE); // heap_listp points third block
+
+    // 2. extend heap as CHUNKSIZE : (1) heap initialize (2) mm_malloc cannot find fit space
+    if (extend_heap(CHUNKSIZE/WSIZE) == NULL){
+        return -1;
+    }
+    next_listp = heap_listp;
+
     return 0;
 }
 
+/*
+ * extend_heap
+ */
+static void *extend_heap(size_t words){
+    char *bp;
+    size_t size;
 
+    // round size as 8bytes... and ask for more heap
+    size = (words % 2) ? (words + 1)*WSIZE : words*WSIZE;
+    if ((long)(bp = mem_sbrk(size)) == -1){
+        return NULL;
+    }
+
+    PUT(HDRP(bp), PACK(size, 0)); // make header to new block
+    PUT(FTRP(bp), PACK(size, 0)); // make footer to new block
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); // make epilogue header to new block
+
+    return coalesce(bp); // if prev block is finished as usable block, combine two usable blocks
+}
+
+/*
+ * find_fit
+ */
 static void *find_fit(size_t asize){
+    char *bp;
 
-    void *bp;
-    /* First Fit */
-    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
-        /* If it is not an allocated block and the size of the block is greater than the size of the value to be allocated, the corresponding address (pointer) is returned. */
-        if((GET_ALLOC(HDRP(bp))==0) && (asize <= GET_SIZE(HDRP(bp)))){
+    for (bp = next_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
+        if (!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))){
             return bp;
         }
     }
     return NULL;
 }
 
+/*
+ * coalesce
+ */
+static void *coalesce(void *bp){
+    // 0 no, 1 yes
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
+    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
+
+    size_t size = GET_SIZE(HDRP(bp));
+
+    /* 
+     * case 1 : prev block, next block both have 1 as last bit
+     * no block combine and return bp
+     */
+    if (prev_alloc && next_alloc){
+        return bp;
+    }
+
+    /* 
+     * case 2 : prev block have 1, next block have 0 as last bit
+     * block combine with next block and return bp
+     */
+    else if (prev_alloc && !next_alloc){
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp))); // add next block size to this block size
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+    }
+
+    /* 
+     * case 3 : prev block have 0, next block have 1 as last bit
+     * block combine with prev block and return bp
+     */
+    else if (!prev_alloc && next_alloc){
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))); // add next block size to this block size
+        PUT(FTRP(bp), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        bp = PREV_BLKP(bp);
+    }
+
+    /* 
+     * case 4 : prev block, next block both have 0 as last bit
+     * block combine with prev, next block and return bp
+     */
+    else if (!prev_alloc && !next_alloc){
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp))) + GET_SIZE(HDRP(PREV_BLKP(bp))); // add next, prev block size to this block size
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+        bp = PREV_BLKP(bp);
+    }
+
+    return bp;
+}
+
+/*
+ * place
+ */
+static void place(void *bp, size_t asize){
+    size_t size = GET_SIZE(HDRP(bp));
+
+    if ((size-asize) >= (2*DSIZE)){
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FTRP(bp), PACK(asize, 1));
+        bp = NEXT_BLKP(bp);
+        PUT(HDRP(bp), PACK(size-asize, 0));
+        PUT(FTRP(bp), PACK(size-asize, 0));
+    }else{
+        PUT(HDRP(bp), PACK(size, 1));
+        PUT(FTRP(bp), PACK(size, 1));
+    }
+
+    return 0;
+}
 
 /*
  * malloc
  */
 void *malloc (size_t size) {
-    size_t asize; // 실제로 할당할 size
+    size_t asize;
     size_t extendsize;
     char *bp;
-    if(size< DSIZE){
-        // 만약 Size가 DSIZE 보다 작은 경우 최소 블럭 크기인 16bytes(2*DWORD)로 할당
+
+    // make enough space for header, footer using size
+    // 8 -> min
+    // 8 -> header, footer overhead
+    if (size <= DSIZE){
+        // if allocating size is smaller than DSIZE+OVERHEAD, set block size as DSIZE to align
         asize = 2*DSIZE;
-    }
-    else{
-        // 이외의 경우 적당히 align
-         asize = DSIZE*((size+(DSIZE) + (DSIZE-1)) / DSIZE);
+    } else {
+        // else set block size by 
+        asize = DSIZE*((size+(DSIZE) + (DSIZE-1)) / DSIZE);
     }
 
-    // find fit 함수를 이용하여 가용블록 찾기
-    if(bp=find_fit(asize) != NULL){
-        // block을 찾았을 경우 해당 위치에 배치
-        place(bp,asize);
+    // search usable block and allocate requested block
+    if ((bp = find_fit(asize)) != NULL){
+        place(bp, asize);
         return bp;
     }
-    // 가용 block을 찾지 못했을 경우. 힙확장
+
+    // if there's nothing found, extend to new usable block and allocate
     extendsize = MAX(asize, CHUNKSIZE);
-    if((bp=extend_heap(extendsize/WSIZE)) == NULL)
-        // 확장 실패시 NULL return
+    if ((bp = extend_heap(extendsize/WSIZE)) == NULL){
         return NULL;
-    // 확장에 성공했을 경우 확장된 위치에 할당
-    place(bp,asize);
+    }
+    place(bp, asize);
 
     return bp;
 }
@@ -245,23 +250,44 @@ void *malloc (size_t size) {
  * free
  */
 void free (void *ptr) {
-    //if(!ptr) return;
-    size_t size = GET_SIZE(HDRP(ptr));
-    // header와 footer의 최하위 비트를 0으로 설정하여 free block으로 전환
-    // header의 alloc 비트 0으로 설정
-    PUT(HDRP(ptr), PACK(size, 0)); 
-    // footer의 alloc 비트 0으로 설정
-    PUT(FTRP(ptr), PACK(size, 0));
+    if(!ptr) return;
 
-    // 주위에 빈 블럭이 있으면 병합
-    coalesce(ptr);
+    size_t size = GET_SIZE(HDRP(ptr)); // read block size from ptr's header
+
+    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(FTRP(ptr), PACK(size, 0));
+    next_listp = coalesce(ptr);
 }
 
 /*
  * realloc - you may want to look at mm-naive.c
  */
 void *realloc(void *oldptr, size_t size) {
-    return NULL;
+    size_t oldsize;
+    char *newptr;
+
+    if (size == 0){
+        free(oldptr);
+        return 0;
+    }
+    if (oldptr == NULL){
+        return malloc(size);
+    }
+
+    newptr = malloc(size);
+    if (!newptr){
+        return 0;
+    }
+    
+    oldsize = GET_SIZE(HDRP(oldptr));
+    if (size < oldsize){
+        oldsize = size;
+    }
+    
+    memcpy(newptr, oldptr, oldsize);
+    free(oldptr);
+
+    return newptr;
 }
 
 /*
