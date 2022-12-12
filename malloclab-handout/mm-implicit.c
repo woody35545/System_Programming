@@ -87,8 +87,7 @@ static char *next_listp = 0;
  */
 int mm_init(void) {
     
-    // 0. make empty heap for padding, prologue, epilogue
-    if ((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1){ // extend 4word to heap_listp
+    if ((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1){
         return -1;
     };
 
